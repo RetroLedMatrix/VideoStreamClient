@@ -1,5 +1,6 @@
 from paho.mqtt import client as mqtt_client
 import random
+import json
 
 
 class mqtt_api:
@@ -11,16 +12,14 @@ class mqtt_api:
         self.topic = topic
 
     def connect_mqtt(self):
-        def on_connect(client, userdata, flags, rc):
-            if rc == 0:
-                print("Connected to MQTT Broker!")
-            else:
-                print("Failed to connect, return code %d\n", rc)
-
         client = mqtt_client.Client(self.client_id, transport="websockets")
-        # client.username_pw_set(username, password)
-        client.on_connect = on_connect
-        client.connect(self.ip_address, self.port)
+
+        rc = client.connect(self.ip_address, self.port)
+        if rc == 0:
+            print("Connected to MQTT se BENJAMIN!")
+        else:
+            print("Failed to connect, return code %d\n", rc)
+
         self.client = client
         self.client.loop_start()
 
@@ -29,12 +28,11 @@ class mqtt_api:
         self.client.disconnect()
         self.client = None
 
-    def publish(self, message):
-        result = self.client.publish(topic=self.topic, payload=message, qos=2)
+    def publish(self, message_data):
+        result = self.client.publish(topic=self.topic, payload=json.dumps({"data":message_data}), qos=2)
 
         # result: [0, 1]
         status = result[0]
-        if status == 0:
-            print(f"Send `{message}` to topic `{self.topic}`")
-        else:
+        if status != 0:
             print(f"Failed to send message to topic {self.topic}")
+
