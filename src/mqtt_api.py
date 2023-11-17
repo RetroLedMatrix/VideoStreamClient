@@ -29,10 +29,14 @@ class mqtt_api:
         self.client = None
 
     def publish(self, message_data):
-        result = self.client.publish(topic=self.topic, payload=json.dumps({"data":message_data}), qos=2)
+        row = 0
+        while len(message_data) > 0:
+            message = json.dumps({"row": row, "data": message_data[:127]})
+            message_data = message_data[128:]
+            result = self.client.publish(topic=self.topic, payload=message, qos=2)
 
-        # result: [0, 1]
-        status = result[0]
-        if status != 0:
-            print(f"Failed to send message to topic {self.topic}")
-
+            # result: [0, 1]
+            status = result[0]
+            row+= 1
+            if status != 0:
+                print(f"Failed to send message to topic {self.topic}")

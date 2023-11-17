@@ -28,7 +28,7 @@ class file_handler:
 
             frame_count += 1
             if frame_count % 100 == 0:
-                print(f"{frame_count/self.total_frames*100}% / 100%")
+                print(f"{int(frame_count/self.total_frames*100)}% / 100%")
 
         t1 = time.time()
 
