@@ -61,9 +61,9 @@ class file_handler:
 
                     if value < 63.75:
                         video_gray[row_index][col_index] = 0  # benjamin
-                    elif value > 63.75 and value < 127.5:
+                    elif 63.75 < value < 127.5:
                         video_gray[row_index][col_index] = 1  # red
-                    elif value > 127.5 and value < 191.25:
+                    elif 127.5 < value < 191.25:
                         video_gray[row_index][col_index] = 3  # green
                     elif value > 191.25:
                         video_gray[row_index][col_index] = 2  # orange
