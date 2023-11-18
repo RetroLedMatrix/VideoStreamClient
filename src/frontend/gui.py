@@ -1,5 +1,5 @@
 from src.mqtt_api import mqtt_api
-from src.file_handler import file_handler
+from src.file_handler import load_file
 import time
 import json
 import customtkinter as ctk
@@ -8,11 +8,22 @@ from tkinter import StringVar, filedialog as fd
 
 DIMENSIONS = (360, 230)
 
+def configure_brightness(percent, topic):
+    mqtt_client.publish(percent, topic)
+
+
+def send_frames_to_topic(fps, converted_frames, topic):
+    delay = 1.0 / fps
+    for frame in converted_frames:
+        next_time = time.time() + delay
+        time.sleep(max(0, next_time - time.time()))
+        mqtt_client.publish(frame, topic)
 
 class gui:
     def __init__(self):
         self.mqtt_client = None
         self.file_path = None
+        self.converted_frames = None
 
         # Initialize master GUI window
         ctk.set_appearance_mode("dark")
@@ -24,10 +35,14 @@ class gui:
         self.tabview = ctk.CTkTabview(self.app, width=DIMENSIONS[0], height=DIMENSIONS[1])
         self.tabview.pack()
 
+        #result = load_file("../../assets/Shrek_1.mp4")
         self.tabview.add("Connection")
         self.tabview.add("Video")
         self.tabview.set("Connection")
 
+        #configure_brightness(50, "brightnessPercent")
+        #send_frames_to_topic(2, result, "allpixels")
+        #mqtt_client.disconnect_mqtt()
         # Initialize video tab
         self.file_label = StringVar()
         self.file_label.set("Selected file: None")
@@ -36,15 +51,27 @@ class gui:
         file_button.pack(pady=5)
         label = ctk.CTkLabel(self.tabview.tab("Video"), textvariable=self.file_label)
         label.pack()
-        clear_button = ctk.CTkButton(self.tabview.tab("Video"), text="Clear matrix", command=lambda: print("clear"))
+        clear_button = ctk.CTkButton(
+            self.tabview.tab("Video"),
+            text="Clear matrix",
+            command=lambda: self.mqtt_client.publish({}, "clear")
+        )
         clear_button.pack(pady=5)
 
         self.method_combobox = ctk.CTkComboBox(self.tabview.tab("Video"), values=["color", "binary"])
         self.method_combobox.pack()
 
-        convert_button = ctk.CTkButton(self.tabview.tab("Video"), text="Start conversion", command=lambda: print("convert"))
+        convert_button = ctk.CTkButton(
+            self.tabview.tab("Video"),
+            text="Start conversion",
+            command=self.get_converted_frames
+        )
         convert_button.pack(side='left', anchor='e', expand=True)
-        playback_button = ctk.CTkButton(self.tabview.tab("Video"), text="Start playback",command=lambda: print("playback"))
+        playback_button = ctk.CTkButton(
+            self.tabview.tab("Video"),
+            text="Start playback",
+            command=lambda: send_frames_to_topic(2, self.converted_frames, "allpixels")
+        )
         playback_button.pack(side='right', anchor='w', expand=True)
 
         # Initialize connection tab
@@ -65,7 +92,7 @@ class gui:
         )
         connect_button.pack(pady=10)
 
-        self.run()
+        self.app.mainloop()
 
     def send_frames(self, fps, converted_frames):
         delay = 1.0 / fps
@@ -89,37 +116,9 @@ class gui:
             CTkMessagebox(title="Error", message="Failed to connect to MQTT server!", icon="cancel")
             print("Failed to connect to MQTT server")
 
-    def run(self):
-        self.app.mainloop()
+    def get_converted_frames(self):
+        self.converted_frames = load_file(self.file_path)
 
-
-
-        """
-        #with open("../../assets/converted/bad_apple_matrix_frames.txt", "r") as f:
-        #with open("../../assets/converted/Shrek_1.txt", "r") as f:
-        #with open("../../assets/converted/ForestPeople.txt", "r") as f:
-        #with open("../../assets/converted/ENA_Auction_Day.txt", "r") as f:
-            try:
-                result = json.load(f)
-                print("Succefully loaded matrix frames from file")
-            except:
-                result = []
-        
-        if not result:
-            #video_handler = file_handler("../../assets/bad_apple.mp4")
-            video_handler = file_handler("../../assets/Shrek_1.mp4")
-            #video_handler = file_handler("../../assets/ENA_Auction_Day.mp4")
-            #video_handler = file_handler("../../assets/ForestPeople.mp4")
-            result = video_handler.convert_file()
-            #with open("../../assets/converted/bad_apple_matrix_frames.txt", "w+") as f:
-            with open("../../assets/converted/Shrek_1.txt", "w+") as f:
-            #with open("../../assets/converted/ENA_Auction_Day.txt", "w+") as f:
-            #with open("../../assets/converted/ForestPeople.txt", "w+") as f:
-                json.dump(result, f)
-        
-        send_frames(30, result)
-        mqtt_client.disconnect_mqtt()
-        """
 
 
 if __name__ == "__main__":
