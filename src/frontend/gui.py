@@ -62,7 +62,7 @@ def send_frames_to_topic(fps, converted_frames, topic, ip_address, prefix, keyfr
     pixel_frame_count = 0
 
     for i, frame in enumerate(converted_frames):
-        if i % skip_frame == 0:  # skip every second frame to improve performance
+        if i > 0 and (i % skip_frame) == 0:  # skip every n frame to improve performance
             continue
 
         if pixel_frame_count > keyframe_threshold:
@@ -270,7 +270,7 @@ class gui:
         self.mqtt_client.publish(data, topic)
 
     def show_image(self):
-        send_frames_to_topic(1, self.converted_frames, "allpixels", self.ip_address, self.prefix, 1)
+        send_frames_to_topic(1, self.converted_frames, "allpixels", self.ip_address, self.prefix, 1, int(self.skip_frame.get()))
 
     def start_playback(self):
         if self.sending_process is None:
