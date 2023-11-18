@@ -8,6 +8,8 @@ from multiprocessing import Process
 import customtkinter as ctk
 from CTkMessagebox import CTkMessagebox
 from tkinter import StringVar, filedialog as fd
+import cv2 as cv
+from ffpyplayer.player import MediaPlayer
 
 DIMENSIONS = (600, 400)
 
@@ -32,6 +34,15 @@ def convert_frame_to_pixel_frame(last_frame, frame):
         count += 1
 
     return pixel_frame
+
+
+def play_audio(file_path):
+    player = MediaPlayer(file_path)
+    val = ''
+    while val != 'eof':
+        frame, val = player.get_frame()
+        if val != 'eof' and frame is not None:
+            img, t = frame
 
 
 def send_frames_to_topic(fps, converted_frames, topic, ip_address, prefix, keyframe_threshold):
@@ -77,6 +88,7 @@ def send_frames_to_topic(fps, converted_frames, topic, ip_address, prefix, keyfr
 
 class gui:
     def __init__(self):
+        self.audio_process = None
         self.ip_address = None
         self.prefix = None
         self.mqtt_client = None
@@ -145,7 +157,7 @@ class gui:
         stop_playback_button = ctk.CTkButton(
             self.tabview.tab("Video"),
             text="Stop playback",
-            command=lambda: psutil.Process(self.sending_process.pid).suspend()
+            command=self.stop_playback
         )
         stop_playback_button.grid(row=3, column=2, padx=(20, 0))
 
@@ -215,6 +227,8 @@ class gui:
         if self.sending_process is not None:
             psutil.Process(self.sending_process.pid).terminate()
             self.sending_process = None
+            psutil.Process(self.audio_process.pid).terminate()
+            self.audio_process = None
 
         label = ctk.CTkLabel(self.tabview.tab("Video"), text="Conversion progress:")
         label.grid(row=4, column=0)
@@ -232,9 +246,11 @@ class gui:
         if self.sending_process is not None:
             try:
                 psutil.Process(self.sending_process.pid).terminate()
+                psutil.Process(self.audio_process.pid).terminate()
             except Exception:
                 print(f"Failed to terminate process with pid {self.sending_process.pid}")
             self.sending_process = None
+            self.audio_process = None
 
         self.converted_frames = load_image(self.file_path)
         CTkMessagebox(title="Success", message="Converted image successfully.",
@@ -257,11 +273,25 @@ class gui:
                       copy.deepcopy(self.ip_address), copy.deepcopy(self.prefix), copy.deepcopy(int(self.keyframe_threshold.get())))
             )
             self.sending_process.start()
+
+            self.audio_process = Process(
+                target=play_audio,
+                args=(copy.deepcopy(self.file_path),)
+            )
+            self.audio_process.start()
+
         else:
             try:
                 psutil.Process(self.sending_process.pid).resume()
             except Exception:
                 print(f"Failed to resume process with pid {self.sending_process.pid}")
+
+    def stop_playback(self):
+        try:
+            psutil.Process(self.sending_process.pid).suspend()
+            psutil.Process(self.audio_process.pid).suspend()
+        except Exception:
+            print(f"Failed to suspend process with pid {self.sending_process.pid}")
 
 
 if __name__ == "__main__":
