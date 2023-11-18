@@ -12,7 +12,31 @@ from tkinter import StringVar, filedialog as fd
 DIMENSIONS = (600, 400)
 
 
+def count_different_characters(last_frame, frame):
+    if len(last_frame) != len(frame):
+        raise ValueError("Both strings must have the same length")
+
+    return sum(1 for char1, char2 in zip(last_frame, frame) if char1 != char2)
+
+
+def convert_frame_to_pixel_frame(last_frame, frame):
+    pixel_frame = []
+
+    count = 0
+    for char1, char2 in zip(last_frame, frame):
+        if char1 != char2:
+            col = count % 128
+            row = int(count / 128)
+            pixel_frame.append([col, row, int(char2)])
+
+        count += 1
+
+    return pixel_frame
+
+
 def send_frames_to_topic(fps, converted_frames, topic, ip_address, prefix):
+    mqtt_client = None
+
     try:
         mqtt_client = mqtt_api(ip_address, 9001, prefix)
         mqtt_client.connect_mqtt()
@@ -20,10 +44,35 @@ def send_frames_to_topic(fps, converted_frames, topic, ip_address, prefix):
         print("Failed to connect to MQTT server from child process")
 
     delay = 1.0 / fps
-    for frame in converted_frames:
+
+    threshold = 1000
+    last_frame = None
+    pixel_frame = None
+    pixel_frame_count = 0
+
+    for i, frame in enumerate(converted_frames):
+        if i % 2:  # skip every second frame to improve performance
+            continue
+
+        if pixel_frame_count > 5:
+            pixel_frame_count = 0
+        else:
+            if last_frame is not None:
+                count = count_different_characters(last_frame, frame)
+                if count <= threshold:
+                    pixel_frame = convert_frame_to_pixel_frame(last_frame, frame)
+                    pixel_frame_count += 1
+
         next_time = time.time() + delay
         time.sleep(max(0, next_time - time.time()))
-        mqtt_client.publish(frame, topic)
+
+        if pixel_frame is not None:
+            mqtt_client.publish(pixel_frame, "pixels")
+            pixel_frame = None
+        else:
+            mqtt_client.publish(frame, topic)
+
+        last_frame = frame
 
 
 class gui:
@@ -117,60 +166,6 @@ class gui:
 
         self.app.mainloop()
 
-    def count_different_characters(self, last_frame, frame):
-        if len(last_frame) != len(frame):
-            raise ValueError("Both strings must have the same length")
-
-        return sum(1 for char1, char2 in zip(last_frame, frame) if char1 != char2)
-
-    def convert_frame_to_pixel_frame(self, last_frame, frame):
-        pixel_frame = []
-
-        count = 0
-        for char1, char2 in zip(last_frame, frame):
-            if char1 != char2:
-                col = count % 128
-                row = int(count / 128)
-                pixel_frame.append([col, row, int(char2)])
-
-            count += 1
-
-        return pixel_frame
-
-    def send_frames_to_topic(self, fps, converted_frames, topic):
-        delay = 1.0 / fps
-        self.configure_matrix("", "clear")
-        self.configure_matrix(50, "brightnessPercent")
-
-        threshold = 1000
-        last_frame = None
-        pixel_frame = None
-        pixel_frame_count = 0
-
-        for i, frame in enumerate(converted_frames):
-            if i % 2:  # skip every second frame to improve performance
-                continue
-
-            if pixel_frame_count > 5:
-                pixel_frame_count = 0
-            else:
-                if last_frame is not None:
-                    count = self.count_different_characters(last_frame, frame)
-                    if count <= threshold:
-                        pixel_frame = self.convert_frame_to_pixel_frame(last_frame, frame)
-                        pixel_frame_count += 1
-
-            next_time = time.time() + delay
-            time.sleep(max(0, next_time - time.time()))
-
-            if pixel_frame is not None:
-                self.mqtt_client.publish(pixel_frame, "pixels")
-                pixel_frame = None
-            else:
-                self.mqtt_client.publish(frame, topic)
-
-            last_frame = frame
-
     def select_file(self):
         self.file_path = fd.askopenfilename()
         self.file_label.set(f"Selected benjamin: {self.file_path.split('/')[-1]}")
@@ -205,15 +200,18 @@ class gui:
         CTkMessagebox(title="Success", message="Converted file successfully.",
                       icon="check", option_1="OK")
 
-    def configure_brightness(self, percent, topic):
-        self.mqtt_client.publish(percent, topic)
+    def configure_matrix(self, data, topic):
+        self.mqtt_client.publish(data, topic)
 
     def start_playback(self):
-        self.configure_brightness(50, "brightnessPercent")
         if self.sending_process is None:
+            self.configure_matrix("", "clear")
+            self.configure_matrix(50, "brightnessPercent")
+
             self.sending_process = Process(
                 target=send_frames_to_topic,
-                args=(copy.deepcopy(int(self.fps.get())), copy.deepcopy(self.converted_frames), "allpixels", copy.deepcopy(self.ip_address), copy.deepcopy(self.prefix))
+                args=(copy.deepcopy(int(self.fps.get())), copy.deepcopy(self.converted_frames), "allpixels",
+                      copy.deepcopy(self.ip_address), copy.deepcopy(self.prefix))
             )
             self.sending_process.start()
         else:
