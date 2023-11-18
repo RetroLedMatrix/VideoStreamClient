@@ -8,17 +8,6 @@ from tkinter import StringVar, filedialog as fd
 
 DIMENSIONS = (360, 230)
 
-def configure_brightness(percent, topic):
-    mqtt_client.publish(percent, topic)
-
-
-def send_frames_to_topic(fps, converted_frames, topic):
-    delay = 1.0 / fps
-    for frame in converted_frames:
-        next_time = time.time() + delay
-        time.sleep(max(0, next_time - time.time()))
-        mqtt_client.publish(frame, topic)
-
 class gui:
     def __init__(self):
         self.mqtt_client = None
@@ -70,7 +59,7 @@ class gui:
         playback_button = ctk.CTkButton(
             self.tabview.tab("Video"),
             text="Start playback",
-            command=lambda: send_frames_to_topic(2, self.converted_frames, "allpixels")
+            command=lambda: self.send_frames_to_topic(2, self.converted_frames, "allpixels")
         )
         playback_button.pack(side='right', anchor='w', expand=True)
 
@@ -94,12 +83,12 @@ class gui:
 
         self.app.mainloop()
 
-    def send_frames(self, fps, converted_frames):
+    def send_frames_to_topic(self, fps, converted_frames, topic):
         delay = 1.0 / fps
         for frame in converted_frames:
             next_time = time.time() + delay
             time.sleep(max(0, next_time - time.time()))
-            self.mqtt_client.publish(frame)
+            self.mqtt_client.publish(frame, topic)
 
     def select_file(self):
         self.file_path = fd.askopenfilename()
@@ -109,7 +98,7 @@ class gui:
     def connect_mqtt(self, ip_address, prefix):
         # Setup MQTT client
         try:
-            self.mqtt_client = mqtt_api(ip_address, 9001, f"{prefix}/pixelrow")
+            self.mqtt_client = mqtt_api(ip_address, 9001, prefix)
             self.mqtt_client.connect_mqtt()
             self.tabview.set("Video")
         except Exception:
@@ -119,6 +108,8 @@ class gui:
     def get_converted_frames(self):
         self.converted_frames = load_file(self.file_path)
 
+    def configure_brightness(self, percent, topic):
+        self.mqtt_client.publish(percent, topic)
 
 
 if __name__ == "__main__":
