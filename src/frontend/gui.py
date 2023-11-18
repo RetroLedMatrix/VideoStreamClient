@@ -1,21 +1,40 @@
 from threading import Thread
-
+import copy
 from src.mqtt_api import mqtt_api
 from src.file_handler import load_file
 import time
-import json
+import psutil
+from multiprocessing import Process
 import customtkinter as ctk
 from CTkMessagebox import CTkMessagebox
 from tkinter import StringVar, filedialog as fd
 
 DIMENSIONS = (600, 400)
 
+
+def send_frames_to_topic(fps, converted_frames, topic, ip_address, prefix):
+    try:
+        mqtt_client = mqtt_api(ip_address, 9001, prefix)
+        mqtt_client.connect_mqtt()
+    except Exception:
+        print("Failed to connect to MQTT server from child process")
+
+    delay = 1.0 / fps
+    for frame in converted_frames:
+        next_time = time.time() + delay
+        time.sleep(max(0, next_time - time.time()))
+        mqtt_client.publish(frame, topic)
+
+
 class gui:
     def __init__(self):
+        self.ip_address = None
+        self.prefix = None
         self.mqtt_client = None
         self.file_path = None
         self.converted_frames = None
         self.progress_bar = None
+        self.sending_process = None
 
         # Initialize master GUI window
         ctk.set_appearance_mode("dark")
@@ -68,13 +87,13 @@ class gui:
         playback_button = ctk.CTkButton(
             self.tabview.tab("Video"),
             text="Start playback",
-            command=lambda: Thread(target=self.send_frames_to_topic, args=(int(self.fps.get()), self.converted_frames, "allpixels")).start()
+            command=self.start_playback
         )
         playback_button.grid(row=3, column=1, padx=(20, 0))
         stop_playback_button = ctk.CTkButton(
             self.tabview.tab("Video"),
             text="Stop playback",
-            command=lambda: print("Placeholder: stopping playback")
+            command=lambda: psutil.Process(self.sending_process.pid).suspend()
         )
         stop_playback_button.grid(row=3, column=2, padx=(20, 0))
 
@@ -92,30 +111,23 @@ class gui:
         connect_button = ctk.CTkButton(
             self.tabview.tab("Connection"),
             text="Connect",
-            command=lambda: self.connect_mqtt(ip_entry.get(), prefix_entry.get())
+            command=lambda: self.connect_mqtt(ip_entry, prefix_entry)
         )
         connect_button.pack(pady=10)
 
         self.app.mainloop()
-
-    def send_frames_to_topic(self, fps, converted_frames, topic):
-        delay = 1.0 / fps
-        self.configure_brightness(50, "brightnessPercent")
-
-        for frame in converted_frames:
-            next_time = time.time() + delay
-            time.sleep(max(0, next_time - time.time()))
-            self.mqtt_client.publish(frame, topic)
 
     def select_file(self):
         self.file_path = fd.askopenfilename()
         self.file_label.set(f"Selected benjamin: {self.file_path.split('/')[-1]}")
         self.app.update_idletasks()
 
-    def connect_mqtt(self, ip_address, prefix):
+    def connect_mqtt(self, ip_entry, prefix_entry):
         # Setup MQTT client
+        self.ip_address = ip_entry.get()
+        self.prefix = prefix_entry.get()
         try:
-            self.mqtt_client = mqtt_api(ip_address, 9001, prefix)
+            self.mqtt_client = mqtt_api(self.ip_address, 9001, self.prefix)
             self.mqtt_client.connect_mqtt()
             self.tabview.set("Video")
         except Exception:
@@ -123,6 +135,10 @@ class gui:
             print("Failed to connect to MQTT server")
 
     def get_converted_frames(self):
+        if self.sending_process is not None:
+            psutil.Process(self.sending_process.pid).terminate()
+        self.sending_process = None
+
         label = ctk.CTkLabel(self.tabview.tab("Video"), text="Conversion progress:")
         label.grid(row=4, column=0)
         self.progress_bar = ctk.CTkProgressBar(self.tabview.tab("Video"), orientation="horizontal")
@@ -132,11 +148,22 @@ class gui:
         label.grid_forget()
         self.progress_bar.grid_forget()
         self.progress_bar = None
-        CTkMessagebox(message="Converted file successfully.",
+        CTkMessagebox(title="Success", message="Converted file successfully.",
                       icon="check", option_1="OK")
 
     def configure_brightness(self, percent, topic):
         self.mqtt_client.publish(percent, topic)
+
+    def start_playback(self):
+        self.configure_brightness(50, "brightnessPercent")
+        if self.sending_process is None:
+            self.sending_process = Process(
+                target=send_frames_to_topic,
+                args=(copy.deepcopy(int(self.fps.get())), copy.deepcopy(self.converted_frames), "allpixels", copy.deepcopy(self.ip_address), copy.deepcopy(self.prefix))
+            )
+            self.sending_process.start()
+        else:
+            psutil.Process(self.sending_process.pid).resume()
 
 
 if __name__ == "__main__":
