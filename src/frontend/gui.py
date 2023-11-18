@@ -1,41 +1,29 @@
 from src.mqtt_api import mqtt_api
-from src.file_handler import file_handler
+from src.file_handler import load_file
 import time
-import json
 
 
-def send_frames(fps, converted_frames):
+def configure_brightness(percent, topic):
+    mqtt_client.publish(percent, topic)
+
+
+def send_frames_to_topic(fps, converted_frames, topic):
     delay = 1.0 / fps
     for frame in converted_frames:
         next_time = time.time() + delay
         time.sleep(max(0, next_time - time.time()))
-        mqtt_client.publish(frame)
+        mqtt_client.publish(frame, topic)
 
 
-mqtt_client = mqtt_api("localhost", 9001, "matrixMarco/pixelrow")
+mqtt_client = mqtt_api("192.168.1.101", 9001, "matrix")
 mqtt_client.connect_mqtt()
 
-#with open("../../assets/converted/bad_apple_matrix_frames.txt", "r") as f:
-with open("../../assets/converted/Shrek_1.txt", "r") as f:
-#with open("../../assets/converted/ForestPeople.txt", "r") as f:
-#with open("../../assets/converted/ENA_Auction_Day.txt", "r") as f:
-    try:
-        result = json.load(f)
-        print("Succefully loaded matrix frames from file")
-    except:
-        result = []
+# "../../assets/converted/bad_apple_matrix_frames.txt"
+# "../../assets/converted/ForestPeople.txt"
+# "../../assets/converted/ENA_Auction_Day.txt"
 
-if not result:
-    #video_handler = file_handler("../../assets/bad_apple.mp4")
-    video_handler = file_handler("../../assets/Shrek_1.mp4")
-    #video_handler = file_handler("../../assets/ENA_Auction_Day.mp4")
-    #video_handler = file_handler("../../assets/ForestPeople.mp4")
-    result = video_handler.convert_file()
-    #with open("../../assets/converted/bad_apple_matrix_frames.txt", "w+") as f:
-    with open("../../assets/converted/Shrek_1.txt", "w+") as f:
-    #with open("../../assets/converted/ENA_Auction_Day.txt", "w+") as f:
-    #with open("../../assets/converted/ForestPeople.txt", "w+") as f:
-        json.dump(result, f)
+result = load_file("../../assets/Shrek_1.mp4")
 
-send_frames(30, result)
+configure_brightness(50, "brightnessPercent")
+send_frames_to_topic(2, result, "allpixels")
 mqtt_client.disconnect_mqtt()

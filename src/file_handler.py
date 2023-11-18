@@ -1,5 +1,34 @@
 import cv2 as cv
 import time
+import json
+
+
+def handle_path_name(full_path):
+    path_without_suffix = full_path.removesuffix(".mp4")
+    parts = path_without_suffix.split("assets/")
+
+    directory = parts[0] + "assets"
+    filename = parts[1]
+
+    return directory, filename
+
+
+def load_file(full_path):
+    directory, file_name = handle_path_name(full_path)
+
+    try:
+        with open(directory + "/converted/" + file_name + ".txt", "r") as f:
+            result = json.load(f)
+            print("Successfully loaded matrix frames from file")
+    except FileNotFoundError:
+        print(f"No converted file found, start new converting")
+        result = []
+
+    if not result:
+        video_handler = file_handler(directory + "/" + file_name + ".mp4")
+        result = video_handler.convert_file()
+        with open(directory + "/converted/" + file_name + ".txt", "w+") as f:
+            json.dump(result, f)
 
 
 class file_handler:
