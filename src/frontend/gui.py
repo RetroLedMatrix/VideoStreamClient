@@ -1,15 +1,16 @@
-from threading import Thread
 import copy
-from src.mqtt_api import mqtt_api
-from src.file_handler import load_file, load_image
 import time
-import psutil
 from multiprocessing import Process
-import customtkinter as ctk
-from CTkMessagebox import CTkMessagebox
+from threading import Thread
 from tkinter import StringVar, filedialog as fd
-import cv2 as cv
+
+import customtkinter as ctk
+import psutil
+from CTkMessagebox import CTkMessagebox
 from ffpyplayer.player import MediaPlayer
+
+from src.file_handler import load_file, load_image
+from src.mqtt_api import mqtt_api
 
 DIMENSIONS = (600, 400)
 
@@ -45,7 +46,7 @@ def play_audio(file_path):
             img, t = frame
 
 
-def send_frames_to_topic(fps, converted_frames, topic, ip_address, prefix, keyframe_threshold, skip_frame):
+def send_frames_to_topic(fps, converted_frames, topic, ip_address, prefix, keyframe_threshold, show_frame_period):
     mqtt_client = None
 
     try:
@@ -62,7 +63,7 @@ def send_frames_to_topic(fps, converted_frames, topic, ip_address, prefix, keyfr
     pixel_frame_count = 0
 
     for i, frame in enumerate(converted_frames):
-        if i > 0 and (i % skip_frame) == 0:  # skip every n frame to improve performance
+        if i > 0 and (i % show_frame_period) != 0:  # skip every n frame to improve performance
             continue
 
         if pixel_frame_count > keyframe_threshold:
@@ -142,11 +143,11 @@ class gui:
         fps = ctk.CTkEntry(self.tabview.tab("Video"), textvariable=self.fps)
         fps.grid(row=2, column=1, padx=(20, 0))
 
-        self.skip_frame = StringVar()
-        self.skip_frame.set("100000")
-        label = ctk.CTkLabel(self.tabview.tab("Video"), text="Skip nTH frame:")
+        self.show_frame_period = StringVar()
+        self.show_frame_period.set("1")
+        label = ctk.CTkLabel(self.tabview.tab("Video"), text="Show every nTH frame:")
         label.grid(row=3, column=0, pady=20)
-        fps = ctk.CTkEntry(self.tabview.tab("Video"), textvariable=self.skip_frame)
+        fps = ctk.CTkEntry(self.tabview.tab("Video"), textvariable=self.show_frame_period)
         fps.grid(row=3, column=1, padx=(20, 0))
 
         convert_button = ctk.CTkButton(
@@ -270,7 +271,7 @@ class gui:
         self.mqtt_client.publish(data, topic)
 
     def show_image(self):
-        send_frames_to_topic(1, self.converted_frames, "allpixels", self.ip_address, self.prefix, 1, int(self.skip_frame.get()))
+        send_frames_to_topic(1, self.converted_frames, "allpixels", self.ip_address, self.prefix, 1, int(self.show_frame_period.get()))
 
     def start_playback(self):
         if self.sending_process is None:
@@ -281,7 +282,7 @@ class gui:
                 target=send_frames_to_topic,
                 args=(copy.deepcopy(int(self.fps.get())), copy.deepcopy(self.converted_frames), "allpixels",
                       copy.deepcopy(self.ip_address), copy.deepcopy(self.prefix), copy.deepcopy(int(self.keyframe_threshold.get())),
-                      copy.deepcopy(int(self.skip_frame.get())))
+                      copy.deepcopy(int(self.show_frame_period.get())))
             )
             self.sending_process.start()
 

@@ -1,6 +1,7 @@
-import cv2 as cv
-import time
 import json
+import time
+
+import cv2 as cv
 
 
 def handle_path_name(full_path):
