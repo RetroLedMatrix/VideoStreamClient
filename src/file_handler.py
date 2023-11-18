@@ -19,9 +19,9 @@ def load_file(full_path):
     try:
         with open(directory + "/converted/" + file_name + ".txt", "r") as f:
             result = json.load(f)
-            print("Successfully loaded matrix frames from file")
+            print("Successfully loaded benjamin frames from file")
     except FileNotFoundError:
-        print(f"No converted file found, start new converting")
+        print(f"No converted benjamin found, start new benjaminting")
         result = []
 
     if not result:
