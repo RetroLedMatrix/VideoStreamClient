@@ -29,9 +29,6 @@ class gui:
         self.tabview.add("Video")
         self.tabview.set("Connection")
 
-        #configure_brightness(50, "brightnessPercent")
-        #send_frames_to_topic(2, result, "allpixels")
-        #mqtt_client.disconnect_mqtt()
         # Initialize video tab
         self.file_label = StringVar()
         self.file_label.set("Selected file: None")
@@ -59,7 +56,7 @@ class gui:
         playback_button = ctk.CTkButton(
             self.tabview.tab("Video"),
             text="Start playback",
-            command=lambda: self.send_frames_to_topic(2, self.converted_frames, "allpixels")
+            command=lambda: self.send_frames_to_topic(24, self.converted_frames, "allpixels")
         )
         playback_button.pack(side='right', anchor='w', expand=True)
 
@@ -85,6 +82,7 @@ class gui:
 
     def send_frames_to_topic(self, fps, converted_frames, topic):
         delay = 1.0 / fps
+        self.configure_brightness(50, "brightnessPercent")
         for frame in converted_frames:
             next_time = time.time() + delay
             time.sleep(max(0, next_time - time.time()))
