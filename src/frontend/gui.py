@@ -1,3 +1,5 @@
+from threading import Thread
+
 from src.mqtt_api import mqtt_api
 from src.file_handler import load_file
 import time
@@ -56,7 +58,7 @@ class gui:
         playback_button = ctk.CTkButton(
             self.tabview.tab("Video"),
             text="Start playback",
-            command=lambda: self.send_frames_to_topic(24, self.converted_frames, "allpixels")
+            command=lambda: Thread(target=self.send_frames_to_topic, args=(24, self.converted_frames, "allpixels")).start()
         )
         playback_button.pack(side='right', anchor='w', expand=True)
 
@@ -83,6 +85,7 @@ class gui:
     def send_frames_to_topic(self, fps, converted_frames, topic):
         delay = 1.0 / fps
         self.configure_brightness(50, "brightnessPercent")
+
         for frame in converted_frames:
             next_time = time.time() + delay
             time.sleep(max(0, next_time - time.time()))
