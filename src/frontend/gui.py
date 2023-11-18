@@ -1,7 +1,7 @@
 from threading import Thread
 import copy
 from src.mqtt_api import mqtt_api
-from src.file_handler import load_file
+from src.file_handler import load_file, load_image
 import time
 import psutil
 from multiprocessing import Process
@@ -55,7 +55,6 @@ def send_frames_to_topic(fps, converted_frames, topic, ip_address, prefix, keyfr
             continue
 
         if pixel_frame_count > keyframe_threshold:
-            print("Sending key frame")
             pixel_frame_count = 0
         else:
             if last_frame is not None:
@@ -99,6 +98,7 @@ class gui:
 
         self.tabview.add("Connection")
         self.tabview.add("Video")
+        self.tabview.add("Image")
         self.tabview.set("Connection")
 
         # Initialize video tab
@@ -167,6 +167,31 @@ class gui:
         )
         connect_button.pack(pady=10)
 
+        # Initialize image tab
+        file_button = ctk.CTkButton(self.tabview.tab("Image"), text="Select File", command=self.select_file)
+        file_button.grid(row=0, column=0)
+        label = ctk.CTkLabel(self.tabview.tab("Image"), textvariable=self.file_label)
+        label.grid(row=0, column=1, padx=(20, 0))
+        clear_button = ctk.CTkButton(
+            self.tabview.tab("Image"),
+            text="Clear matrix",
+            command=lambda: self.mqtt_client.publish({}, "clear")
+        )
+        clear_button.place(relx=0.75)
+
+        convert_button = ctk.CTkButton(
+            self.tabview.tab("Image"),
+            text="Start conversion",
+            command=self.get_converted_frame
+        )
+        convert_button.grid(row=3, column=0, pady=20)
+        playback_button = ctk.CTkButton(
+            self.tabview.tab("Image"),
+            text="Display image",
+            command=self.show_image
+        )
+        playback_button.grid(row=3, column=1, padx=(20, 0))
+
         self.app.mainloop()
 
     def select_file(self):
@@ -203,8 +228,23 @@ class gui:
         CTkMessagebox(title="Success", message="Converted file successfully.",
                       icon="check", option_1="OK")
 
+    def get_converted_frame(self):
+        if self.sending_process is not None:
+            try:
+                psutil.Process(self.sending_process.pid).terminate()
+            except Exception:
+                print(f"Failed to terminate process with pid {self.sending_process.pid}")
+            self.sending_process = None
+
+        self.converted_frames = load_image(self.file_path)
+        CTkMessagebox(title="Success", message="Converted image successfully.",
+                      icon="check", option_1="OK")
+
     def configure_matrix(self, data, topic):
         self.mqtt_client.publish(data, topic)
+
+    def show_image(self):
+        send_frames_to_topic(1, self.converted_frames, "allpixels", self.ip_address, self.prefix, 1)
 
     def start_playback(self):
         if self.sending_process is None:
@@ -218,7 +258,10 @@ class gui:
             )
             self.sending_process.start()
         else:
-            psutil.Process(self.sending_process.pid).resume()
+            try:
+                psutil.Process(self.sending_process.pid).resume()
+            except Exception:
+                print(f"Failed to resume process with pid {self.sending_process.pid}")
 
 
 if __name__ == "__main__":

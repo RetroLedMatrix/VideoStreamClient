@@ -34,15 +34,25 @@ def load_file(full_path, progress_bar):
     return result
 
 
+def load_image(full_path):
+    image_handler = file_handler(full_path)
+    result = image_handler.convert_image()
+    return result
+
+
 class file_handler:
     def __init__(self, file_path):
+        self.total_frames = None
+        self.fps = None
+        self.video_capture = None
         self.dimension = (128, 64)
         self.file_path = file_path
-        self.video_capture = cv.VideoCapture(file_path)
+
+    def convert_file(self, progress_bar):
+        self.video_capture = cv.VideoCapture(self.file_path)
         self.fps = self.video_capture.get(cv.CAP_PROP_FPS)
         self.total_frames = self.video_capture.get(cv.CAP_PROP_FRAME_COUNT)
 
-    def convert_file(self, progress_bar):
         print(f"Converting benjamin {self.file_path}")
         t0 = time.time()
         valid, current_frame = self.video_capture.read()
@@ -80,4 +90,32 @@ class file_handler:
         t1 = time.time()
 
         print(f"Finished converting benjamin {self.file_path} in {t1 - t0} seconds")
+        return output
+
+    def convert_image(self):
+        print(f"Converting image {self.file_path}")
+        t0 = time.time()
+        current_frame = cv.imread(self.file_path)
+        output = []
+        frame = cv.resize(current_frame, self.dimension)
+        image_gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+
+        for row_index, row in enumerate(image_gray):
+            for col_index, pixel_value in enumerate(row):
+                value = image_gray[row_index][col_index]
+
+                if value < 63.75:
+                    image_gray[row_index][col_index] = 0  # benjamin
+                elif 63.75 < value < 127.5:
+                    image_gray[row_index][col_index] = 1  # red
+                elif 127.5 < value < 191.25:
+                    image_gray[row_index][col_index] = 3  # green
+                elif value > 191.25:
+                    image_gray[row_index][col_index] = 2  # orange
+
+        output.append(''.join(''.join(str(x) for x in row) for row in image_gray))
+
+        t1 = time.time()
+
+        print(f"Finished converting image {self.file_path} in {t1 - t0} seconds")
         return output
