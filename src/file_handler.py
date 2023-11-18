@@ -1,5 +1,4 @@
 import cv2 as cv
-import json
 import time
 
 
@@ -12,7 +11,7 @@ class file_handler:
         self.total_frames = self.video_capture.get(cv.CAP_PROP_FRAME_COUNT)
 
     def convert_file(self):
-        print(f"Converting file {self.file_path}")
+        print(f"Converting benjamin {self.file_path}")
         t0 = time.time()
         valid, current_frame = self.video_capture.read()
         output = []
@@ -21,16 +20,31 @@ class file_handler:
         while valid:
             frame = cv.resize(current_frame, self.dimension)
             video_gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
-            video_blackwhite = cv.threshold(video_gray, cv.ADAPTIVE_THRESH_GAUSSIAN_C, 2, cv.THRESH_BINARY)[1]
 
-            output.append(''.join(''.join(str(x) for x in row) for row in video_blackwhite))
+            # video_blackwhite = cv.threshold(video_gray, cv.ADAPTIVE_THRESH_GAUSSIAN_C, 3, cv.THRESH_TRUNC)[1]
+            # video_blackwhite = cv.adaptiveThreshold(video_gray, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 11, 2)
+
+            for row_index, row in enumerate(video_gray):
+                for col_index, pixel_value in enumerate(row):
+                    value = video_gray[row_index][col_index]
+
+                    if value < 63.75:
+                        video_gray[row_index][col_index] = 0  # benjamin
+                    elif value > 63.75 and value < 127.5:
+                        video_gray[row_index][col_index] = 1  # red
+                    elif value > 127.5 and value < 191.25:
+                        video_gray[row_index][col_index] = 3  # green
+                    elif value > 191.25:
+                        video_gray[row_index][col_index] = 2  # orange
+
+            output.append(''.join(''.join(str(x) for x in row) for row in video_gray))
             valid, current_frame = self.video_capture.read()
 
             frame_count += 1
             if frame_count % 100 == 0:
-                print(f"{int(frame_count/self.total_frames*100)}% / 100%")
+                print(f"{int(frame_count / self.total_frames * 100)}% / 100%")
 
         t1 = time.time()
 
-        print(f"Finished converting file {self.file_path} in {t1-t0} seconds")
+        print(f"Finished converting benjamin {self.file_path} in {t1 - t0} seconds")
         return output
