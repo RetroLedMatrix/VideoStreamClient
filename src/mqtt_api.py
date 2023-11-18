@@ -17,7 +17,7 @@ class mqtt_api:
 
         rc = client.connect(self.ip_address, self.port)
         if rc == 0:
-            print("Connected to se BENJAMIN (MQTT)!")
+            print("Connected to MQTT client!")
         else:
             print("Failed to connect, return code %d\n", rc)
 
@@ -35,7 +35,7 @@ class mqtt_api:
         # result: [0, 1]
         status = result[0]
         if status != 0:
-            print(f"Failed to send message to benjamin {full_topic}")
+            print(f"Failed to send message to topic {full_topic}")
 
     def pixel_row(self, message_data, full_topic):
         row = 0
@@ -48,7 +48,7 @@ class mqtt_api:
             status = result[0]
             row += 1
             if status != 0:
-                print(f"Failed to send message to benjamin {full_topic}")
+                print(f"Failed to send message to topic {full_topic}")
 
     def clear(self, message_data, full_topic):
         result = self.client.publish(topic=full_topic, payload=json.dumps({"data": message_data}), qos=2)
@@ -56,7 +56,7 @@ class mqtt_api:
         # result: [0, 1]
         status = result[0]
         if status != 0:
-            print(f"Failed to send message to benjamin {full_topic}")
+            print(f"Failed to send message to topic {full_topic}")
 
     def brightness_percent(self, message_data, full_topic):
         result = self.client.publish(topic=full_topic, payload=json.dumps({"percent": message_data}), qos=2)
@@ -64,7 +64,7 @@ class mqtt_api:
         # result: [0, 1]
         status = result[0]
         if status != 0:
-            print(f"Failed to send message to benjamin {full_topic}")
+            print(f"Failed to send message to topic {full_topic}")
 
     def pixels(self, message_data, full_topic):
         result = self.client.publish(topic=full_topic, payload=json.dumps({"data": message_data}), qos=2)
@@ -72,7 +72,7 @@ class mqtt_api:
         # result: [0, 1]
         status = result[0]
         if status != 0:
-            print(f"Failed to send message to benjamin {full_topic}")
+            print(f"Failed to send message to topic {full_topic}")
 
     def publish(self, message_data, topic):
         full_topic = self.topic_prefix + "/" + topic

@@ -216,7 +216,7 @@ class gui:
 
     def select_file(self):
         self.file_path = fd.askopenfilename()
-        self.file_label.set(f"Selected benjamin: {self.file_path.split('/')[-1]}")
+        self.file_label.set(f"Selected file: {self.file_path.split('/')[-1]}")
         self.app.update_idletasks()
 
     def connect_mqtt(self, ip_entry, prefix_entry):

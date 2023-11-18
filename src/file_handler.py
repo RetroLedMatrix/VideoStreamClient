@@ -21,9 +21,9 @@ def load_file(full_path, progress_bar):
         with open(directory + "/converted/" + file_name + ".txt", "r") as f:
             result = json.load(f)
             progress_bar.set(1)
-            print("Successfully loaded benjamin frames from file")
+            print("Successfully loaded converted frames from file")
     except FileNotFoundError:
-        print(f"No converted benjamin found, start new benjaminting")
+        print(f"No converted frames found, start new converting")
         result = []
 
     if not result:
@@ -54,7 +54,7 @@ class file_handler:
         self.fps = self.video_capture.get(cv.CAP_PROP_FPS)
         self.total_frames = self.video_capture.get(cv.CAP_PROP_FRAME_COUNT)
 
-        print(f"Converting benjamin {self.file_path}")
+        print(f"Converting file {self.file_path}")
         t0 = time.time()
         valid, current_frame = self.video_capture.read()
         output = []
@@ -72,7 +72,7 @@ class file_handler:
                     value = video_gray[row_index][col_index]
 
                     if value < 63.75:
-                        video_gray[row_index][col_index] = 0  # benjamin
+                        video_gray[row_index][col_index] = 0  # off
                     elif 63.75 < value < 127.5:
                         video_gray[row_index][col_index] = 1  # red
                     elif 127.5 < value < 191.25:
@@ -90,7 +90,7 @@ class file_handler:
 
         t1 = time.time()
 
-        print(f"Finished converting benjamin {self.file_path} in {t1 - t0} seconds")
+        print(f"Finished converting file {self.file_path} in {t1 - t0} seconds")
         return output
 
     def convert_image(self):
@@ -106,7 +106,7 @@ class file_handler:
                 value = image_gray[row_index][col_index]
 
                 if value < 63.75:
-                    image_gray[row_index][col_index] = 0  # benjamin
+                    image_gray[row_index][col_index] = 0  # off
                 elif 63.75 < value < 127.5:
                     image_gray[row_index][col_index] = 1  # red
                 elif 127.5 < value < 191.25:
