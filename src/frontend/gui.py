@@ -34,7 +34,7 @@ def convert_frame_to_pixel_frame(last_frame, frame):
     return pixel_frame
 
 
-def send_frames_to_topic(fps, converted_frames, topic, ip_address, prefix):
+def send_frames_to_topic(fps, converted_frames, topic, ip_address, prefix, keyframe_threshold):
     mqtt_client = None
 
     try:
@@ -54,7 +54,8 @@ def send_frames_to_topic(fps, converted_frames, topic, ip_address, prefix):
         if i % 2:  # skip every second frame to improve performance
             continue
 
-        if pixel_frame_count > 5:
+        if pixel_frame_count > keyframe_threshold:
+            print("Sending key frame")
             pixel_frame_count = 0
         else:
             if last_frame is not None:
@@ -115,10 +116,12 @@ class gui:
         )
         clear_button.place(relx=0.75)
 
-        label = ctk.CTkLabel(self.tabview.tab("Video"), text="Conversion method:")
+        self.keyframe_threshold = StringVar()
+        self.keyframe_threshold.set("10")
+        label = ctk.CTkLabel(self.tabview.tab("Video"), text="Keyframe threshold:")
         label.grid(row=1, column=0, pady=20)
-        self.method_combobox = ctk.CTkComboBox(self.tabview.tab("Video"), values=["color", "binary"])
-        self.method_combobox.grid(row=1, column=1, padx=(20, 0))
+        keyframe_threshold = ctk.CTkEntry(self.tabview.tab("Video"), textvariable=self.keyframe_threshold)
+        keyframe_threshold.grid(row=1, column=1, padx=(20, 0))
 
         self.fps = StringVar()
         self.fps.set("24")
@@ -186,7 +189,7 @@ class gui:
     def get_converted_frames(self):
         if self.sending_process is not None:
             psutil.Process(self.sending_process.pid).terminate()
-        self.sending_process = None
+            self.sending_process = None
 
         label = ctk.CTkLabel(self.tabview.tab("Video"), text="Conversion progress:")
         label.grid(row=4, column=0)
@@ -211,7 +214,7 @@ class gui:
             self.sending_process = Process(
                 target=send_frames_to_topic,
                 args=(copy.deepcopy(int(self.fps.get())), copy.deepcopy(self.converted_frames), "allpixels",
-                      copy.deepcopy(self.ip_address), copy.deepcopy(self.prefix))
+                      copy.deepcopy(self.ip_address), copy.deepcopy(self.prefix), copy.deepcopy(int(self.keyframe_threshold.get())))
             )
             self.sending_process.start()
         else:
