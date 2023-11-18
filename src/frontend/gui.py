@@ -15,6 +15,7 @@ class gui:
         self.mqtt_client = None
         self.file_path = None
         self.converted_frames = None
+        self.progress_bar = None
 
         # Initialize master GUI window
         ctk.set_appearance_mode("dark")
@@ -38,7 +39,7 @@ class gui:
         file_button = ctk.CTkButton(self.tabview.tab("Video"), text="Select File", command=self.select_file)
         file_button.grid(row=0, column=0)
         label = ctk.CTkLabel(self.tabview.tab("Video"), textvariable=self.file_label)
-        label.grid(row=0, column=1, padx=(20,0))
+        label.grid(row=0, column=1, padx=(20, 0))
         clear_button = ctk.CTkButton(
             self.tabview.tab("Video"),
             text="Clear matrix",
@@ -49,7 +50,7 @@ class gui:
         label = ctk.CTkLabel(self.tabview.tab("Video"), text="Conversion method:")
         label.grid(row=1, column=0, pady=20)
         self.method_combobox = ctk.CTkComboBox(self.tabview.tab("Video"), values=["color", "binary"])
-        self.method_combobox.grid(row=1, column=1, padx=(20,0))
+        self.method_combobox.grid(row=1, column=1, padx=(20, 0))
 
         self.fps = StringVar()
         self.fps.set("24")
@@ -61,7 +62,7 @@ class gui:
         convert_button = ctk.CTkButton(
             self.tabview.tab("Video"),
             text="Start conversion",
-            command=self.get_converted_frames
+            command=lambda: Thread(target=self.get_converted_frames).start()
         )
         convert_button.grid(row=3, column=0, pady=20)
         playback_button = ctk.CTkButton(
@@ -122,7 +123,17 @@ class gui:
             print("Failed to connect to MQTT server")
 
     def get_converted_frames(self):
-        self.converted_frames = load_file(self.file_path)
+        label = ctk.CTkLabel(self.tabview.tab("Video"), text="Conversion progress:")
+        label.grid(row=4, column=0)
+        self.progress_bar = ctk.CTkProgressBar(self.tabview.tab("Video"), orientation="horizontal")
+        self.progress_bar.grid(row=4, column=1, pady=20)
+        self.progress_bar.set(0)
+        self.converted_frames = load_file(self.file_path, self.progress_bar)
+        label.grid_forget()
+        self.progress_bar.grid_forget()
+        self.progress_bar = None
+        CTkMessagebox(message="Converted file successfully.",
+                      icon="check", option_1="OK")
 
     def configure_brightness(self, percent, topic):
         self.mqtt_client.publish(percent, topic)
