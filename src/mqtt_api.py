@@ -65,6 +65,14 @@ class mqtt_api:
         if status != 0:
             print(f"Failed to send message to benjamin {full_topic}")
 
+    def pixels(self, message_data, full_topic):
+        result = self.client.publish(topic=full_topic, payload=json.dumps({"data": message_data}), qos=2)
+
+        # result: [0, 1]
+        status = result[0]
+        if status != 0:
+            print(f"Failed to send message to benjamin {full_topic}")
+
     def publish(self, message_data, topic):
         full_topic = self.topic_prefix + "/" + topic
 
@@ -76,3 +84,5 @@ class mqtt_api:
             self.clear(message_data, full_topic)
         elif topic == "brightnessPercent":
             self.brightness_percent(message_data, full_topic)
+        elif topic == "pixels":
+            self.pixels(message_data, full_topic)

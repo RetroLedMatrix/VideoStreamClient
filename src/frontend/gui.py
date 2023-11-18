@@ -10,6 +10,7 @@ from tkinter import StringVar, filedialog as fd
 
 DIMENSIONS = (360, 230)
 
+
 class gui:
     def __init__(self):
         self.mqtt_client = None
@@ -26,7 +27,7 @@ class gui:
         self.tabview = ctk.CTkTabview(self.app, width=DIMENSIONS[0], height=DIMENSIONS[1])
         self.tabview.pack()
 
-        #result = load_file("../../assets/Shrek_1.mp4")
+        # result = load_file("../../assets/Shrek_1.mp4")
         self.tabview.add("Connection")
         self.tabview.add("Video")
         self.tabview.set("Connection")
@@ -58,7 +59,8 @@ class gui:
         playback_button = ctk.CTkButton(
             self.tabview.tab("Video"),
             text="Start playback",
-            command=lambda: Thread(target=self.send_frames_to_topic, args=(24, self.converted_frames, "allpixels")).start()
+            command=lambda: Thread(target=self.send_frames_to_topic,
+                                   args=(12, self.converted_frames, "allpixels")).start()
         )
         playback_button.pack(side='right', anchor='w', expand=True)
 
@@ -82,14 +84,59 @@ class gui:
 
         self.app.mainloop()
 
+    def count_different_characters(self, last_frame, frame):
+        if len(last_frame) != len(frame):
+            raise ValueError("Both strings must have the same length")
+
+        return sum(1 for char1, char2 in zip(last_frame, frame) if char1 != char2)
+
+    def convert_frame_to_pixel_frame(self, last_frame, frame):
+        pixel_frame = []
+
+        count = 0
+        for char1, char2 in zip(last_frame, frame):
+            if char1 != char2:
+                col = count % 128
+                row = int(count / 128)
+                pixel_frame.append([col, row, int(char2)])
+
+            count += 1
+
+        return pixel_frame
+
     def send_frames_to_topic(self, fps, converted_frames, topic):
         delay = 1.0 / fps
-        self.configure_brightness(50, "brightnessPercent")
+        self.configure_matrix("", "clear")
+        self.configure_matrix(50, "brightnessPercent")
 
-        for frame in converted_frames:
+        threshold = 1000
+        last_frame = None
+        pixel_frame = None
+        pixel_frame_count = 0
+
+        for i, frame in enumerate(converted_frames):
+            if i % 2:  # skip every second frame to improve performance
+                continue
+
+            if pixel_frame_count > 5:
+                pixel_frame_count = 0
+            else:
+                if last_frame is not None:
+                    count = self.count_different_characters(last_frame, frame)
+                    if count <= threshold:
+                        pixel_frame = self.convert_frame_to_pixel_frame(last_frame, frame)
+                        pixel_frame_count += 1
+
             next_time = time.time() + delay
             time.sleep(max(0, next_time - time.time()))
-            self.mqtt_client.publish(frame, topic)
+
+            if pixel_frame is not None:
+                self.mqtt_client.publish(pixel_frame, "pixels")
+                pixel_frame = None
+            else:
+                self.mqtt_client.publish(frame, topic)
+
+            last_frame = frame
 
     def select_file(self):
         self.file_path = fd.askopenfilename()
@@ -109,8 +156,8 @@ class gui:
     def get_converted_frames(self):
         self.converted_frames = load_file(self.file_path)
 
-    def configure_brightness(self, percent, topic):
-        self.mqtt_client.publish(percent, topic)
+    def configure_matrix(self, data, topic):
+        self.mqtt_client.publish(data, topic)
 
 
 if __name__ == "__main__":
