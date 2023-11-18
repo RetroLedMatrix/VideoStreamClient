@@ -45,7 +45,7 @@ def play_audio(file_path):
             img, t = frame
 
 
-def send_frames_to_topic(fps, converted_frames, topic, ip_address, prefix, keyframe_threshold):
+def send_frames_to_topic(fps, converted_frames, topic, ip_address, prefix, keyframe_threshold, skip_frame):
     mqtt_client = None
 
     try:
@@ -62,7 +62,7 @@ def send_frames_to_topic(fps, converted_frames, topic, ip_address, prefix, keyfr
     pixel_frame_count = 0
 
     for i, frame in enumerate(converted_frames):
-        if i % 2:  # skip every second frame to improve performance
+        if i % skip_frame == 0:  # skip every second frame to improve performance
             continue
 
         if pixel_frame_count > keyframe_threshold:
@@ -142,24 +142,31 @@ class gui:
         fps = ctk.CTkEntry(self.tabview.tab("Video"), textvariable=self.fps)
         fps.grid(row=2, column=1, padx=(20, 0))
 
+        self.skip_frame = StringVar()
+        self.skip_frame.set("100000")
+        label = ctk.CTkLabel(self.tabview.tab("Video"), text="Skip nTH frame:")
+        label.grid(row=3, column=0, pady=20)
+        fps = ctk.CTkEntry(self.tabview.tab("Video"), textvariable=self.skip_frame)
+        fps.grid(row=3, column=1, padx=(20, 0))
+
         convert_button = ctk.CTkButton(
             self.tabview.tab("Video"),
             text="Start conversion",
             command=lambda: Thread(target=self.get_converted_frames).start()
         )
-        convert_button.grid(row=3, column=0, pady=20)
+        convert_button.grid(row=4, column=0)
         playback_button = ctk.CTkButton(
             self.tabview.tab("Video"),
             text="Start playback",
             command=self.start_playback
         )
-        playback_button.grid(row=3, column=1, padx=(20, 0))
+        playback_button.grid(row=4, column=1, padx=(20, 0))
         stop_playback_button = ctk.CTkButton(
             self.tabview.tab("Video"),
             text="Stop playback",
             command=self.stop_playback
         )
-        stop_playback_button.grid(row=3, column=2, padx=(20, 0))
+        stop_playback_button.grid(row=4, column=2, padx=(20, 0))
 
         # Initialize connection tab
         ip_label = ctk.CTkLabel(self.tabview.tab("Connection"), text="IP Address:")
@@ -225,15 +232,18 @@ class gui:
 
     def get_converted_frames(self):
         if self.sending_process is not None:
-            psutil.Process(self.sending_process.pid).terminate()
-            self.sending_process = None
-            psutil.Process(self.audio_process.pid).terminate()
-            self.audio_process = None
+            try:
+                psutil.Process(self.sending_process.pid).terminate()
+                self.sending_process = None
+                psutil.Process(self.audio_process.pid).terminate()
+                self.audio_process = None
+            except Exception:
+                print(f"Failed to terminate processes")
 
         label = ctk.CTkLabel(self.tabview.tab("Video"), text="Conversion progress:")
-        label.grid(row=4, column=0)
+        label.grid(row=5, column=0)
         self.progress_bar = ctk.CTkProgressBar(self.tabview.tab("Video"), orientation="horizontal")
-        self.progress_bar.grid(row=4, column=1, pady=20)
+        self.progress_bar.grid(row=5, column=1, pady=20)
         self.progress_bar.set(0)
         self.converted_frames = load_file(self.file_path, self.progress_bar)
         label.grid_forget()
@@ -270,7 +280,8 @@ class gui:
             self.sending_process = Process(
                 target=send_frames_to_topic,
                 args=(copy.deepcopy(int(self.fps.get())), copy.deepcopy(self.converted_frames), "allpixels",
-                      copy.deepcopy(self.ip_address), copy.deepcopy(self.prefix), copy.deepcopy(int(self.keyframe_threshold.get())))
+                      copy.deepcopy(self.ip_address), copy.deepcopy(self.prefix), copy.deepcopy(int(self.keyframe_threshold.get())),
+                      copy.deepcopy(int(self.skip_frame.get())))
             )
             self.sending_process.start()
 
