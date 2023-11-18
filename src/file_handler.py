@@ -13,12 +13,13 @@ def handle_path_name(full_path):
     return directory, filename
 
 
-def load_file(full_path):
+def load_file(full_path, progress_bar):
     directory, file_name = handle_path_name(full_path)
 
     try:
         with open(directory + "/converted/" + file_name + ".txt", "r") as f:
             result = json.load(f)
+            progress_bar.set(1)
             print("Successfully loaded benjamin frames from file")
     except FileNotFoundError:
         print(f"No converted benjamin found, start new benjaminting")
@@ -26,7 +27,7 @@ def load_file(full_path):
 
     if not result:
         video_handler = file_handler(directory + "/" + file_name + ".mp4")
-        result = video_handler.convert_file()
+        result = video_handler.convert_file(progress_bar)
         with open(directory + "/converted/" + file_name + ".txt", "w+") as f:
             json.dump(result, f)
 
@@ -41,7 +42,7 @@ class file_handler:
         self.fps = self.video_capture.get(cv.CAP_PROP_FPS)
         self.total_frames = self.video_capture.get(cv.CAP_PROP_FRAME_COUNT)
 
-    def convert_file(self):
+    def convert_file(self, progress_bar):
         print(f"Converting benjamin {self.file_path}")
         t0 = time.time()
         valid, current_frame = self.video_capture.read()
@@ -72,6 +73,7 @@ class file_handler:
             valid, current_frame = self.video_capture.read()
 
             frame_count += 1
+            progress_bar.set(frame_count / self.total_frames)
             if frame_count % 100 == 0:
                 print(f"{int(frame_count / self.total_frames * 100)}% / 100%")
 
