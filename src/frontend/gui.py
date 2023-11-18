@@ -8,7 +8,7 @@ import customtkinter as ctk
 from CTkMessagebox import CTkMessagebox
 from tkinter import StringVar, filedialog as fd
 
-DIMENSIONS = (360, 230)
+DIMENSIONS = (600, 400)
 
 class gui:
     def __init__(self):
@@ -21,12 +21,12 @@ class gui:
         ctk.set_default_color_theme("dark-blue")
         self.app = ctk.CTk()
         self.app.geometry(f"{DIMENSIONS[0]}x{DIMENSIONS[1]}")
+        self.app.maxsize(DIMENSIONS[0], DIMENSIONS[1])
 
         # Initialize tabviews
         self.tabview = ctk.CTkTabview(self.app, width=DIMENSIONS[0], height=DIMENSIONS[1])
         self.tabview.pack()
 
-        #result = load_file("../../assets/Shrek_1.mp4")
         self.tabview.add("Connection")
         self.tabview.add("Video")
         self.tabview.set("Connection")
@@ -36,31 +36,46 @@ class gui:
         self.file_label.set("Selected file: None")
 
         file_button = ctk.CTkButton(self.tabview.tab("Video"), text="Select File", command=self.select_file)
-        file_button.pack(pady=5)
+        file_button.grid(row=0, column=0)
         label = ctk.CTkLabel(self.tabview.tab("Video"), textvariable=self.file_label)
-        label.pack()
+        label.grid(row=0, column=1, padx=(20,0))
         clear_button = ctk.CTkButton(
             self.tabview.tab("Video"),
             text="Clear matrix",
             command=lambda: self.mqtt_client.publish({}, "clear")
         )
-        clear_button.pack(pady=5)
+        clear_button.place(relx=0.75)
 
+        label = ctk.CTkLabel(self.tabview.tab("Video"), text="Conversion method:")
+        label.grid(row=1, column=0, pady=20)
         self.method_combobox = ctk.CTkComboBox(self.tabview.tab("Video"), values=["color", "binary"])
-        self.method_combobox.pack()
+        self.method_combobox.grid(row=1, column=1, padx=(20,0))
+
+        self.fps = StringVar()
+        self.fps.set("24")
+        label = ctk.CTkLabel(self.tabview.tab("Video"), text="Playback fps:")
+        label.grid(row=2, column=0)
+        fps = ctk.CTkEntry(self.tabview.tab("Video"), textvariable=self.fps)
+        fps.grid(row=2, column=1, padx=(20, 0))
 
         convert_button = ctk.CTkButton(
             self.tabview.tab("Video"),
             text="Start conversion",
             command=self.get_converted_frames
         )
-        convert_button.pack(side='left', anchor='e', expand=True)
+        convert_button.grid(row=3, column=0, pady=20)
         playback_button = ctk.CTkButton(
             self.tabview.tab("Video"),
             text="Start playback",
-            command=lambda: Thread(target=self.send_frames_to_topic, args=(24, self.converted_frames, "allpixels")).start()
+            command=lambda: Thread(target=self.send_frames_to_topic, args=(int(self.fps.get()), self.converted_frames, "allpixels")).start()
         )
-        playback_button.pack(side='right', anchor='w', expand=True)
+        playback_button.grid(row=3, column=1, padx=(20, 0))
+        stop_playback_button = ctk.CTkButton(
+            self.tabview.tab("Video"),
+            text="Stop playback",
+            command=lambda: print("Placeholder: stopping playback")
+        )
+        stop_playback_button.grid(row=3, column=2, padx=(20, 0))
 
         # Initialize connection tab
         ip_label = ctk.CTkLabel(self.tabview.tab("Connection"), text="IP Address:")
