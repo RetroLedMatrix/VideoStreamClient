@@ -30,6 +30,8 @@ def load_file(full_path):
         with open(directory + "/converted/" + file_name + ".txt", "w+") as f:
             json.dump(result, f)
 
+    return result
+
 
 class file_handler:
     def __init__(self, file_path):
