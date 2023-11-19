@@ -235,11 +235,11 @@ class gui:
         if self.sending_process is not None:
             try:
                 psutil.Process(self.sending_process.pid).terminate()
-                self.sending_process = None
                 psutil.Process(self.audio_process.pid).terminate()
-                self.audio_process = None
             except Exception:
                 print(f"Failed to terminate processes")
+        self.sending_process = None
+        self.audio_process = None
 
         label = ctk.CTkLabel(self.tabview.tab("Video"), text="Conversion progress:")
         label.grid(row=5, column=0)
@@ -280,7 +280,7 @@ class gui:
 
             self.sending_process = Process(
                 target=send_frames_to_topic,
-                args=(copy.deepcopy(int(self.fps.get())), copy.deepcopy(self.converted_frames), "allpixels",
+                args=(copy.deepcopy(float(self.fps.get())), copy.deepcopy(self.converted_frames), "allpixels",
                       copy.deepcopy(self.ip_address), copy.deepcopy(self.prefix), copy.deepcopy(int(self.keyframe_threshold.get())),
                       copy.deepcopy(int(self.show_frame_period.get())))
             )
